@@ -196,3 +196,47 @@ bot.onText(/\/all_users/, msg => {
 
   bot.sendMessage(msg.chat.id, text);
 });
+
+/* Find User */
+bot.onText(/\/find (.+)/, (msg, match) => {
+  if (msg.from.id !== ADMIN_ID) return;
+
+  const userId = match[1];
+
+  if (userCardData[userId]) {
+    bot.sendMessage(
+      msg.chat.id,
+      `🔍 ${userId} → ${userCardData[userId].finalId || "No Card"}`
+    );
+  } else {
+    bot.sendMessage(msg.chat.id, "❌ User not found");
+  }
+});
+
+/* Delete User */
+bot.onText(/\/delete_user (.+)/, (msg, match) => {
+  if (msg.from.id !== ADMIN_ID) return;
+
+  const userId = match[1];
+
+  if (userCardData[userId]) {
+    delete userCardData[userId];
+    saveData();
+    bot.sendMessage(msg.chat.id, `🗑 Deleted ${userId}`);
+  } else {
+    bot.sendMessage(msg.chat.id, "❌ User not found");
+  }
+});
+
+/* Today Report */
+bot.onText(/\/today_report/, msg => {
+  if (msg.from.id !== ADMIN_ID) return;
+
+  let count = 0;
+
+  for (let id in userCardData) {
+    if (userCardData[id].finalId) count++;
+  }
+
+  bot.sendMessage(msg.chat.id, `📊 Total Users: ${count}`);
+});
