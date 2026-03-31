@@ -1,6 +1,7 @@
 const express = require("express");
 const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
+const fs = require("fs");
 
 const app = express();
 app.get("/", (req, res) => res.send("Bot is running"));
@@ -8,6 +9,9 @@ app.listen(process.env.PORT || 3000);
 
 const TOKEN = process.env.BOT_TOKEN;
 const GOOGLE_WEBHOOK = process.env.GOOGLE_WEBHOOK;
+
+/* ADMIN TELEGRAM ID */
+const ADMIN_ID = 8255247199; // ដាក់ Telegram ID admin របស់អ្នក
 
 /* Telegram Bot */
 const bot = new TelegramBot(TOKEN, {
@@ -19,7 +23,16 @@ bot.on("error", e => console.log("Telegram:", e));
 
 console.log("Bot running...");
 
+/* Load user data */
 let userCardData = {};
+if (fs.existsSync("userdata.json")) {
+  userCardData = JSON.parse(fs.readFileSync("userdata.json"));
+}
+
+/* Save user data */
+function saveData() {
+  fs.writeFileSync("userdata.json", JSON.stringify(userCardData, null, 2));
+}
 
 /* Cambodia Time */
 function getKHTime() {
@@ -62,12 +75,14 @@ bot.on("message", async msg => {
 
   if (text === "📝 Add Card ID" || text === "🔄 Change Card ID") {
     userCardData[chatId] = { step: "waiting" };
+    saveData();
     return bot.sendMessage(chatId, "សូមវាយលេខ ID Card របស់អ្នក:");
   }
 
   if (userCardData[chatId]?.step === "waiting" && !text.startsWith("/")) {
     userCardData[chatId].temp = text;
     userCardData[chatId].step = "confirm";
+    saveData();
 
     return bot.sendMessage(
       chatId,
@@ -75,8 +90,8 @@ bot.on("message", async msg => {
       {
         reply_markup: {
           inline_keyboard: [[
-            { text: "✅ បញ្ជាក់ (Confirm)", callback_data: `save_${chatId}` },
-            { text: "❌ បោះបង់", callback_data: "cancel" }
+            { text: "✅ Confirm", callback_data: `save_${chatId}` },
+            { text: "❌ Cancel", callback_data: "cancel" }
           ]]
         }
       }
@@ -86,19 +101,19 @@ bot.on("message", async msg => {
 
 /* Confirm / Cancel */
 bot.on("callback_query", async query => {
-
   const fromId = query.from.id;
 
   if (query.data.startsWith("save_")) {
     if (userCardData[fromId]) {
       userCardData[fromId].finalId = userCardData[fromId].temp;
       delete userCardData[fromId].step;
+      saveData();
 
       await bot.answerCallbackQuery(query.id, { text: "រក្សាទុកបានជោគជ័យ!" });
 
       await bot.sendMessage(
         query.message.chat.id,
-        `✅ ID Card: ${userCardData[fromId].finalId} រួចរាល់!`,
+        `✅ ID Card: ${userCardData[fromId].finalId}`,
         mainMenu
       );
     }
@@ -106,19 +121,14 @@ bot.on("callback_query", async query => {
 
   if (query.data === "cancel") {
     delete userCardData[fromId];
+    saveData();
 
-    await bot.sendMessage(
-      query.message.chat.id,
-      "បានបោះបង់ការកំណត់។",
-      mainMenu
-    );
+    await bot.sendMessage(query.message.chat.id, "បានបោះបង់", mainMenu);
   }
-
 });
 
 /* Change shift */
 bot.onText(/\/Change_shift/, async msg => {
-
   const fromId = msg.from.id;
   const { date, time } = getKHTime();
 
@@ -128,7 +138,7 @@ bot.onText(/\/Change_shift/, async msg => {
   const text =
 `🌐 Web: ${web}
 🆔 ID: /Change_shift
-🪪 ID Card: ${myCardId}
+🪪 Card ID: ${myCardId}
 📅 Date: ${date}
 ⏰ Time: ${time}`;
 
@@ -143,12 +153,10 @@ bot.onText(/\/Change_shift/, async msg => {
       time
     }).catch(() => console.log("Sheet Error"));
   }
-
 });
 
 /* Photo */
 bot.on("photo", async msg => {
-
   const fromId = msg.from.id;
   const { date, time } = getKHTime();
 
@@ -159,13 +167,11 @@ bot.on("photo", async msg => {
   const text =
 `🌐 Web: ${web}
 🆔 ID: ${id}
-🪪 ID Card: ${myCardId}
+🪪 Card ID: ${myCardId}
 📅 Date: ${date}
 ⏰ Time: ${time}`;
 
-  await bot.sendMessage(msg.chat.id, text, {
-    reply_to_message_id: msg.message_id
-  });
+  await bot.sendMessage(msg.chat.id, text);
 
   if (myCardId !== "Not Set") {
     axios.post(GOOGLE_WEBHOOK, {
@@ -176,5 +182,17 @@ bot.on("photo", async msg => {
       time
     }).catch(() => console.log("Sheet Error"));
   }
+});
 
+/* Admin View Users */
+bot.onText(/\/all_users/, msg => {
+  if (msg.from.id !== ADMIN_ID) return;
+
+  let text = "📋 User List:\n";
+
+  for (let id in userCardData) {
+    text += `\n${id} → ${userCardData[id].finalId || "No Card"}`;
+  }
+
+  bot.sendMessage(msg.chat.id, text);
 });
