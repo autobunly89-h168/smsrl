@@ -38,7 +38,7 @@ function saveData() {
   fs.writeFileSync("userdata.json", JSON.stringify(userCardData, null, 2));
 }
 
-/* Cambodia Time Format: 31-Mar-2026 */
+/* Cambodia Time Format: 01-Apr-2026 */
 function getKHTime() {
   const now = new Date();
   const dateParts = now.toLocaleDateString("en-GB", {
@@ -150,7 +150,10 @@ bot.onText(/\/Change_shift/, async msg => {
 📅 Date: ${date}
 ⏰ Time: ${time}`;
 
-  await bot.sendMessage(msg.chat.id, reportText);
+  // បន្ថែម reply_to_message_id ដើម្បីឱ្យវា Quote សារ
+  await bot.sendMessage(msg.chat.id, reportText, {
+    reply_to_message_id: msg.message_id
+  });
 
   if (myCardId !== "Not Set") {
     axios.post(GOOGLE_WEBHOOK, { web, id: "/Change_shift", cardId: myCardId, date, time })
@@ -173,7 +176,10 @@ bot.on("photo", async msg => {
 📅 Date: ${date}
 ⏰ Time: ${time}`;
 
-  await bot.sendMessage(msg.chat.id, reportText, { reply_to_message_id: msg.message_id });
+  // បន្ថែម reply_to_message_id ដើម្បីឱ្យវា Quote រូបភាព
+  await bot.sendMessage(msg.chat.id, reportText, { 
+    reply_to_message_id: msg.message_id 
+  });
 
   if (myCardId !== "Not Set") {
     axios.post(GOOGLE_WEBHOOK, { web, id, cardId: myCardId, date, time })
@@ -204,7 +210,7 @@ bot.onText(/\/delete_user (.+)/, (msg, match) => {
   }
 });
 
-/* Quote Reply Function */
+/* Quote Manual Reply */
 bot.onText(/\/quote (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const replyText = match[1];
