@@ -240,3 +240,26 @@ bot.onText(/\/today_report/, msg => {
 
   bot.sendMessage(msg.chat.id, `📊 Total Users: ${count}`);
 });
+/* Quote Reply */
+bot.onText(/\/quote (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const replyText = match[1];
+
+  // ពិនិត្យថា user បាន quote សារមុនមួយ
+  if (!msg.reply_to_message) {
+    return bot.sendMessage(chatId, "❌ សូមប្រើ /quote ពេលដែលអ្នកបាន Reply ទៅសារមួយចាស់។");
+  }
+
+  const original = msg.reply_to_message.text || "No text";
+
+  const quoteMessage = 
+`💬 Quote Reply:
+"${original}"
+
+➡️ Reply: ${replyText}`;
+
+  // Send reply with quote style
+  bot.sendMessage(chatId, quoteMessage, {
+    reply_to_message_id: msg.message_id
+  });
+});
